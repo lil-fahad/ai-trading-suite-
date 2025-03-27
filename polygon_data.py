@@ -1,12 +1,11 @@
 
-import os
-from dotenv import load_dotenv
+import streamlit as st
 from polygon import RESTClient
 import pandas as pd
 from datetime import datetime, timedelta
 
-load_dotenv()
-api_key = os.getenv("POLYGON_API_KEY")
+# استخدام مفتاح API من st.secrets
+api_key = st.secrets["POLYGON_API_KEY"]
 client = RESTClient(api_key)
 
 def get_stock_data(symbol, days=365):
@@ -22,7 +21,7 @@ def get_options_chain(symbol, exp_date=None, limit=10):
     if not exp_date:
         today = datetime.now().strftime('%Y-%m-%d')
         exp_date = today
-    results = client.list_options_contracts(ticker=symbol, expiration_date=exp_date, limit=limit)
+    results = client.list_options_contracts(underlying_ticker=symbol, expiration_date=exp_date, limit=limit)
     contracts = []
     for res in results:
         contracts.append({
