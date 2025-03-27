@@ -1,27 +1,21 @@
 
-def explain_decision(pred_price, indicators, openai_api_key):
-    import openai
-    openai.api_key = openai_api_key
+import openai
+import os
 
+def explain_decision(pred_price, indicators):
+    openai.api_key = os.getenv("OPENAI_API_KEY")
     prompt = f"""
-You are a financial AI analyst. Based on the following indicators and predicted price, explain in simple terms why the model might suggest a buy or sell action.
-
-Predicted Price: {pred_price}
-Indicators:
-- RSI: {indicators['rsi']}
-- MACD: {indicators['macd']}
-- SMA_10: {indicators['sma']}
-- EMA_20: {indicators['ema']}
-
-Provide a 2-3 sentence explanation of the decision.
+Given:
+- Predicted price: {pred_price}
+- Indicators: {indicators}
+Explain the forecast in clear terms.
 """
-
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5
         )
-        return response['choices'][0]['message']['content']
-    except Exception as e:
-        return "GPT explanation not available."
+        return response.choices[0].message.content.strip()
+    except:
+        return "Explanation unavailable right now."
