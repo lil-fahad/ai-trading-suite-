@@ -1,9 +1,8 @@
 streamlit
-yfinance
-ta
-scikit-learn
-matplotlib
-pandas
+polygon-api-client
 python-dotenv
+pandas
+matplotlib
+numpy
 openai
-tensorflow
+requests
