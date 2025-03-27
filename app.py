@@ -25,33 +25,53 @@ if run:
         st.error("لم يتم العثور على بيانات كافية لهذا الرمز. يرجى تجربة رمز آخر.")
         st.stop()
 
-    # مؤشرات فنية متقدمة
-    df["SMA_10"] = SMAIndicator(close=df["Close"], window=10).sma_indicator()
-    df["EMA_20"] = EMAIndicator(close=df["Close"], window=20).ema_indicator()
-    df["RSI_14"] = RSIIndicator(close=df["Close"], window=14).rsi()
-    df["CCI_20"] = CCIIndicator(high=df["High"], low=df["Low"], close=df["Close"], window=20).cci()
-    df["ADX_14"] = ADXIndicator(high=df["High"], low=df["Low"], close=df["Close"], window=14).adx()
-    df["OBV"] = OnBalanceVolumeIndicator(close=df["Close"], volume=df["Volume"]).on_balance_volume()
+    # تحويل الأعمدة لضمان كونها 1D
+    df["Close"] = df["Close"].astype(float).squeeze()
+    df["High"] = df["High"].astype(float).squeeze()
+    df["Low"] = df["Low"].astype(float).squeeze()
+    df["Volume"] = df["Volume"].astype(float).squeeze()
+
+    # المؤشرات الفنية - معالجة أخطاء البُعد
+    df["SMA_10"] = SMAIndicator(close=df["Close"].squeeze(), window=10).sma_indicator()
+    df["EMA_20"] = EMAIndicator(close=df["Close"].squeeze(), window=20).ema_indicator()
+    df["RSI_14"] = RSIIndicator(close=df["Close"].squeeze(), window=14).rsi()
+    df["CCI_20"] = CCIIndicator(
+        high=df["High"].squeeze(),
+        low=df["Low"].squeeze(),
+        close=df["Close"].squeeze(),
+        window=20
+    ).cci()
+    df["ADX_14"] = ADXIndicator(
+        high=df["High"].squeeze(),
+        low=df["Low"].squeeze(),
+        close=df["Close"].squeeze(),
+        window=14
+    ).adx()
+    df["OBV"] = OnBalanceVolumeIndicator(
+        close=df["Close"].squeeze(),
+        volume=df["Volume"].squeeze()
+    ).on_balance_volume()
+
     df.dropna(inplace=True)
 
-    features = ['Open', 'High', 'Low', 'Close', 'Volume', 'SMA_10', 'EMA_20', 'RSI_14', 'CCI_20', 'ADX_14', 'OBV']
+    features = ['Open', 'High', 'Low', 'Close', 'Volume',
+                'SMA_10', 'EMA_20', 'RSI_14', 'CCI_20', 'ADX_14', 'OBV']
     scaler = MinMaxScaler()
     scaled = scaler.fit_transform(df[features])
     target_idx = features.index("Close")
 
-    # تجهيز البيانات
-    X, y = [], []
     window = 60
+    X, y = [], []
     for i in range(window, len(scaled) - future_days):
         X.append(scaled[i-window:i])
         y.append([scaled[i + d, target_idx] for d in range(future_days)])
-    X, y = np.array(X), np.array(y)
 
+    X, y = np.array(X), np.array(y)
     split = int(len(X) * 0.8)
     X_train, y_train = X[:split], y[:split]
     X_test, y_test = X[split:], y[split:]
 
-    # بناء النموذج
+    # نموذج LSTM
     model = Sequential([
         LSTM(128, return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])),
         Dropout(0.2),
@@ -64,8 +84,10 @@ if run:
 
     preds = model.predict(X_test)
     mae = mean_absolute_error(y_test, preds)
-    rmse = mean_squared_error(y_test, preds, squared=False)
-    direction_acc = np.mean(np.sign(np.diff(y_test[:, -1])) == np.sign(np.diff(preds[:, -1]))) * 100
+    rmse = np.sqrt(mean_squared_error(y_test, preds))  # تم تصحيحه
+    direction_acc = np.mean(
+        np.sign(np.diff(y_test[:, -1])) == np.sign(np.diff(preds[:, -1]))
+    ) * 100
 
     st.subheader("نتائج التقييم:")
     st.write(f"MAE: {mae:.4f} | RMSE: {rmse:.4f} | دقة الاتجاه: {direction_acc:.2f}%")
